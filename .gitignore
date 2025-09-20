@@ -1,0 +1,11 @@
+# não subir segredos/caches
+.env
+__pycache__/
+*.pyc
+*.zip
+
+# dumps: permitir só a pasta dedicada
+*.sql
+!dumps/
+dumps/*
+!dumps/README.md
