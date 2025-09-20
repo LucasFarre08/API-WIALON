@@ -1,11 +1,10 @@
-# não subir segredos/caches
-.env
-__pycache__/
-*.pyc
-*.zip
-
-# dumps: permitir só a pasta dedicada
+# ignora .sql por padrão
 *.sql
+
+# permite a pasta dumps inteira
 !dumps/
-dumps/*
+dumps/**
+
+# mas re-inclui explicitamente estes arquivos dentro de dumps
 !dumps/README.md
+!dumps/telemetria_db_latest.sql
