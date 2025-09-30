@@ -69,12 +69,11 @@ def dest_table_for_template(tid: int) -> str:
         41: "velocidade_chuva_60km",
         31: "seguranca",
         43: "viagens",
-        36: "Freio", 
-        35: "Embreagem",
+        36: "freio",
+        35: "embreagem",
         # ?  : "pontual_viagens_moto",  # Viagens.Moto -> preencha aqui o template_id quando souber
     }
     return mapping.get(tid, "report_data")
-
 
 
 # ======== MySQL logger ========
@@ -146,76 +145,107 @@ class SqlLogger:
         """)
 
         # tabelas específicas Pontual (recebem colunas dinâmicas no import)
-       
+
         #tabelas geral
         self.cur.execute("""
         CREATE TABLE IF NOT EXISTS kickdown (
             id BIGINT AUTO_INCREMENT PRIMARY KEY,
             run_id INT NOT NULL,
-            sheet_name VARCHAR(255) NULL
+            sheet_name VARCHAR(255) NULL,
+            ativado datetime,
+            duracao time
         ) ENGINE=InnoDB;
         """)
         self.cur.execute("""
         CREATE TABLE IF NOT EXISTS ociosidade (
             id BIGINT AUTO_INCREMENT PRIMARY KEY,
             run_id INT NOT NULL,
-            sheet_name VARCHAR(255) NULL
+            sheet_name VARCHAR(255) NULL,
+            ativado datetime,
+            duracao time,
+            combustivel_gasto float
         ) ENGINE=InnoDB;
         """)
         self.cur.execute("""
         CREATE TABLE IF NOT EXISTS rpm_amarelo (
             id BIGINT AUTO_INCREMENT PRIMARY KEY,
             run_id INT NOT NULL,
-            sheet_name VARCHAR(255) NULL
+            sheet_name VARCHAR(255) NULL,
+            ativado datetime,
+            duracao time
         ) ENGINE=InnoDB;
         """)
         self.cur.execute("""
         CREATE TABLE IF NOT EXISTS rpm_vermelho (
             id BIGINT AUTO_INCREMENT PRIMARY KEY,
             run_id INT NOT NULL,
-            sheet_name VARCHAR(255) NULL
+            sheet_name VARCHAR(255) NULL,
+            ativado datetime,
+            duracao time,
+            rpm_maximo INT                         
         ) ENGINE=InnoDB;
         """)
         self.cur.execute("""
         CREATE TABLE IF NOT EXISTS velocidade_80km (
             id BIGINT AUTO_INCREMENT PRIMARY KEY,
             run_id INT NOT NULL,
-            sheet_name VARCHAR(255) NULL
+            sheet_name VARCHAR(255) NULL,
+            ativado datetime,
+            duracao time,
+            velocidade_maxima INT
         ) ENGINE=InnoDB;
         """)
         self.cur.execute("""
         CREATE TABLE IF NOT EXISTS velocidade_chuva_60km (
             id BIGINT AUTO_INCREMENT PRIMARY KEY,
             run_id INT NOT NULL,
-            sheet_name VARCHAR(255) NULL
+            sheet_name VARCHAR(255) NULL,
+            ativado datetime,
+            duracao time,
+            velocidade_maxima INT
         ) ENGINE=InnoDB;
         """)
         self.cur.execute("""
         CREATE TABLE IF NOT EXISTS viagens (
             id BIGINT AUTO_INCREMENT PRIMARY KEY,
             run_id INT NOT NULL,
-            sheet_name VARCHAR(255) NULL
+            sheet_name VARCHAR(255) NULL,
+            inicio datetime,
+            fim datetime,
+            quilometragem float,
+            litros_consumidos float,
+            duracao time,
+            quilometragem_inicial float,
+            quilometragem_final float,
+            horas_de_motor float
         ) ENGINE=InnoDB;
         """)
         self.cur.execute("""
         CREATE TABLE IF NOT EXISTS seguranca (
             id BIGINT AUTO_INCREMENT PRIMARY KEY,
             run_id INT NOT NULL,
-            sheet_name VARCHAR(255) NULL
+            sheet_name VARCHAR(255) NULL,
+            velocidade INT,
+            data datetime,
+            evento INT
         ) ENGINE=InnoDB;
         """)
         self.cur.execute("""
         CREATE TABLE IF NOT EXISTS freio (
             id BIGINT AUTO_INCREMENT PRIMARY KEY,
             run_id INT NOT NULL,
-            sheet_name VARCHAR(255) NULL
+            sheet_name VARCHAR(255) NULL,
+            ativado datetime,
+            duracao time
         ) ENGINE=InnoDB;
         """)
         self.cur.execute("""
         CREATE TABLE IF NOT EXISTS embreagem (
             id BIGINT AUTO_INCREMENT PRIMARY KEY,
             run_id INT NOT NULL,
-            sheet_name VARCHAR(255) NULL
+            sheet_name VARCHAR(255) NULL,
+            ativado datetime,
+            duracao time
         ) ENGINE=InnoDB;
         """)
         # Se/quando souber o template de Viagens.Moto, habilite a tabela:
@@ -231,7 +261,7 @@ class SqlLogger:
 
     # -------- lifecycle ----------
     def start_run(self, base_url, sid, token_used, resource_id, template_id,
-                  object_id, from_ts, to_ts, remote_exec, fmt, output_path):
+                    object_id, from_ts, to_ts, remote_exec, fmt, output_path):
         self.cur.execute("""
             INSERT INTO runs (started_at, base_url, sid, token_used, resource_id, template_id,
                               object_id, from_ts, to_ts, remote_exec, fmt, output_path)
@@ -262,12 +292,37 @@ class SqlLogger:
         """, (run_id, filename, mime, len(content), content))
         self.conn.commit()
 
+    def close(self):
+        """Fecha cursor e conexão com segurança."""
+        try:
+            if hasattr(self, "cur") and self.cur:
+                try:
+                    self.cur.close()
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        try:
+            if hasattr(self, "conn") and self.conn:
+                try:
+                    self.conn.commit()
+                except Exception:
+                    pass
+                try:
+                    self.conn.close()
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
     # -------- CSV/XLSX -> MySQL (arquivo em memória OU caminho) ----------
     def import_tabular_to_sql(self, run_id: int, file_obj_or_path, table_name: str = "report_data"):
         import pandas as pd
         from unidecode import unidecode
         import os
+        from dateutil import parser
 
+        # --- Funções auxiliares aninhadas para manter o escopo limpo ---
         def normalize(col: str) -> str:
             c = unidecode(str(col)).strip().lower()
             c = re.sub(r"[^a-z0-9]+", "_", c)
@@ -275,8 +330,8 @@ class SqlLogger:
             return c or "col"
 
         def find_header_row(df: "pd.DataFrame") -> int:
-            keywords = {"n", "no", "agrupamento", "sensor", "motorista", "duracao",
-                        "localizacao", "início", "inicio", "fim", "data", "tempo"}
+            keywords = {"n", "no", "grouping", "sensor", "motorista", "duracao",
+                        "localizacao", "início", "inicio", "fim", "data", "tempo", "duracao", "ativado"}
             for i in range(min(25, len(df))):
                 row = df.iloc[i].astype(str).str.strip()
                 row_norm = {normalize(x) for x in row if x and x != "nan"}
@@ -284,10 +339,6 @@ class SqlLogger:
                 if (keywords & row_norm) or non_empty >= 3:
                     return i
             return 0
-
-        # --- ler CSV/XLSX de BytesIO OU caminho ---
-        df = None
-        sheet_name = None
 
         def read_best_xlsx(x):
             xls = pd.ExcelFile(x, engine="openpyxl")
@@ -301,6 +352,47 @@ class SqlLogger:
                     best_df, best_name, best_score = tmp, name, score
             return best_df, best_name
 
+        def format_datetime_val(val):
+            try:
+                dt = parser.parse(str(val), fuzzy=True)
+                return dt.strftime('%Y-%m-%d %H:%M:%S')
+            except Exception:
+                return val
+
+        def parse_duration(val):
+            try:
+                parts = re.split(r'[: ]', str(val).strip())
+                parts = [int(p) for p in parts if p.isdigit()]
+                if len(parts) == 3:
+                    h, m, s = parts
+                    total_seconds = h * 3600 + m * 60 + s
+                elif len(parts) == 2:
+                    m, s = parts
+                    total_seconds = m * 60 + s
+                elif len(parts) == 1:
+                    total_seconds = parts[0]
+                else:
+                    return val
+                days, remainder = divmod(total_seconds, 86400)
+                hours, remainder = divmod(remainder, 3600)
+                minutes, seconds = divmod(remainder, 60)
+                if days > 0:
+                    return f"{days} dias {hours:02}:{minutes:02}:{seconds:02}"
+                else:
+                    return f"{hours:02}:{minutes:02}:{seconds:02}"
+            except Exception:
+                return val
+
+        def to_decimal(val):
+            try:
+                s_val = str(val).replace('.', '').replace(',', '.')
+                return "{:.2f}".format(float(s_val)).replace('.', ',')
+            except Exception:
+                return val
+
+        # --- ler CSV/XLSX de BytesIO OU caminho ---
+        df = None
+        sheet_name = None
         if hasattr(file_obj_or_path, "read"):
             ext = os.path.splitext(getattr(file_obj_or_path, "name", "memory.xlsx"))[1].lower()
             if ext == ".csv":
@@ -339,7 +431,17 @@ class SqlLogger:
             df.columns = range(df.shape[1])
             df = raw.iloc[hdr:].reset_index(drop=True)
 
-        # normaliza colunas (únicas)
+        # Aplicar transformações de tipo
+        for col in df.columns:
+            col_lower = str(col).lower()
+            if any(k in col_lower for k in ["data", "inicio", "fim", "ativado"]):
+                df[col] = df[col].apply(format_datetime_val)
+            elif "duracao" in col_lower or "duração" in col_lower:
+                df[col] = df[col].apply(parse_duration)
+            elif "numero" in col_lower or "número" in col_lower:
+                df[col] = df[col].apply(to_decimal)
+
+        # Normaliza nomes de colunas para serem compatíveis com SQL
         new_cols, seen = [], set()
         for c in df.columns:
             base = normalize(c)
@@ -352,7 +454,7 @@ class SqlLogger:
             new_cols.append(k)
         df.columns = new_cols
 
-        # garantir colunas na tabela de destino (table_name)
+        # Garantir colunas na tabela de destino (table_name)
         self.cur.execute(f"SHOW COLUMNS FROM `{table_name}`;")
         existing = {row[0] for row in self.cur.fetchall()}
         required = {"id", "run_id", "sheet_name"}
@@ -361,7 +463,7 @@ class SqlLogger:
                 self.cur.execute(f"ALTER TABLE `{table_name}` ADD COLUMN `{c}` TEXT NULL;")
         self.conn.commit()
 
-        # preparar dados
+        # Preparar dados para inserção
         df.insert(0, "run_id", run_id)
         if "sheet_name" not in df.columns:
             df.insert(1, "sheet_name", sheet_name)
@@ -370,34 +472,117 @@ class SqlLogger:
         col_list = ", ".join(f"`{c}`" for c in cols)
         placeholders = ", ".join(["%s"] * len(cols))
 
-        # converter NaN -> None e tudo para str (ou None)
+        # ---- identificar colunas numéricas por dtype ou nome ----
+        import pandas as _pd
+        numeric_name_keywords = ("combustivel_gasto", "litros", "velocidade_maxima", "km", "consum", "horas_de_motor", "rpm_maximo", "quilometragem", "litros_consumidos","quilometragem_inicial","quilometragem_final","horas_motor")
+        # cols é a lista já criada acima (df.columns.tolist())
+        # montar set de colunas que vamos tratar como números
+        numeric_cols = set()
+        for c in cols:
+            # já é coluna 'run_id' ou 'sheet_name' -> não forçar a número
+            if c in ("run_id", "sheet_name"):
+                continue
+            # heurística 1: dtype numérico
+            try:
+                if _pd.api.types.is_numeric_dtype(df[c]):
+                    numeric_cols.add(c)
+                    continue
+            except Exception:
+                pass
+            # heurística 2: nome contém keyword
+            low = str(c).lower()
+            if any(k in low for k in numeric_name_keywords):
+                numeric_cols.add(c)
+
+        def clean_cell(v, as_number=False):
+            """Limpeza segura. se as_number=True retorna float ou None; senão string limpa ou None."""
+            import pandas as pd
+            if pd.isna(v):
+                return None
+            s = str(v).strip()
+
+            # strings vazias ou só traços => None
+            if s == "" or re.fullmatch(r"[-–—]{1,}", s):
+                return None
+
+            # remover muitas espaços internos (mas manter texto normal)
+            s = re.sub(r"\s+", " ", s).strip()
+
+            # se for para número: aplicar limpeza numérica
+            if as_number:
+                # lidar com (123) -> -123
+                if s.startswith("(") and s.endswith(")"):
+                    s = "-" + s[1:-1]
+                # remover tudo que não é dígito, sinal, ponto ou vírgula
+                s_num = re.sub(r"[^0-9\-\.,]", "", s)
+                # se contém ponto e vírgula -> ponto = milhares, vírgula = decimal
+                if "." in s_num and "," in s_num:
+                    s_num = s_num.replace(".", "").replace(",", ".")
+                elif "," in s_num and "." not in s_num:
+                    s_num = s_num.replace(",", ".")
+                # remover pontos extras (milhares) mantendo o último como separador decimal se houver
+                if s_num.count(".") > 1:
+                    s_num = re.sub(r'\.(?=.*\.)', '', s_num)
+                if s_num in ("", "-"):
+                    return None
+                # tentar converter para float
+                if re.fullmatch(r"-?\d+(\.\d+)?", s_num):
+                    try:
+                        return float(s_num)
+                    except Exception:
+                        return None
+                # tentar extrair primeiro número encontrado
+                m = re.search(r"-?\d+(\.\d+)?", s_num)
+                if m:
+                    try:
+                        return float(m.group(0))
+                    except Exception:
+                        return None
+                return None
+            else:
+                # NÃO forçar número → apenas limpar excesso de caracteres indesejados leves
+                # remover caracteres de controle estranhos e trims, manter texto legível
+                s = re.sub(r"[\x00-\x1f\x7f]+", "", s)  # control chars
+                # se for algo que ficou apenas números (ex: "12345") e era texto, manter como string
+                return s if s != "" else None
+
+        # montar records respeitando numeric_cols
         records = []
         for _, row in df.iterrows():
             vals = []
-            for v in row:
-                try:
-                    import pandas as pd  # escopo local
-                    is_nan = pd.isna(v)
-                except Exception:
-                    is_nan = False
-                vals.append(None if is_nan else (str(v) if v is not None else None))
+            for col_name, v in zip(cols, row):
+                as_num = col_name in numeric_cols
+                cleaned = clean_cell(v, as_number=as_num)
+                # se coluna numérica e cleaned não for None, garantimos string/float adequado para o DB:
+                # o connector aceita float/str; manter float facilita colunas DECIMAL/FLOAT
+                vals.append(cleaned)
             records.append(tuple(vals))
 
+
+        # Inserir no banco (executemany)
         if records:
-            self.cur.executemany(
-                f"INSERT INTO {table_name} ({col_list}) VALUES ({placeholders});",
-                records
-            )
-            self.conn.commit()
-            self.log_step(run_id, "import_tabular_to_sql", "local",
-                          {"inserted": len(records), "sheet": sheet_name, "table": table_name}, 200, True, {"ok": True}, None)
+            try:
+                self.cur.executemany(
+                    f"INSERT INTO `{table_name}` ({col_list}) VALUES ({placeholders});",
+                    records
+                )
+                self.conn.commit()
+                self.log_step(run_id, "import_tabular_to_sql", "local",
+                              {"inserted": len(records), "sheet": sheet_name, "table": table_name}, 200, True, {"ok": True}, None)
+            except Exception as e:
+                # registrar erro e re-levantar para o chamador tratar se necessário
+                try:
+                    self.conn.rollback()
+                except Exception:
+                    pass
+                self.log_step(run_id, "import_tabular_to_sql", "local",
+                              {"file": sheet_name or table_name}, 0, False, None, str(e))
+                raise
         else:
             self.log_step(run_id, "import_tabular_to_sql", "local",
                           {"reason": "no_records_after_clean", "table": table_name}, 200, True, {"rows": 0}, None)
 
-    def close(self):
-        self.cur.close()
-        self.conn.close()
+    # fim import_tabular_to_sql
 
 
 # ======== Wialon client ========
@@ -472,7 +657,7 @@ class WialonClient:
                 "sortType": "sys_name"
             },
             "force": 1,
-            "flags": 1,     # id + nm
+            "flags": 1,      # id + nm
             "from": 0,
             "to": 10000
         }
@@ -682,7 +867,7 @@ def main():
     ap.add_argument("--mysql-host", default="localhost")
     ap.add_argument("--mysql-user", default="root")
     ap.add_argument("--mysql-pass", default="")
-    ap.add_argument("--mysql-db", default="telemetria_db")  # mude aqui se quiser outro default
+    ap.add_argument("--mysql-db", default="Pontual_db")  # Default corrigido para consistência
     # Wialon report args
     ap.add_argument("--resource-id", type=int, required=True)
     ap.add_argument("--template-id", type=int, required=True)
@@ -727,10 +912,11 @@ def main():
             unit_filter=args.unit_filter,
             seed=args.seed,
         )
-        print(f"OK: arquivo gerado em {out}")
+        print(f"OK: Processo concluído. Saída principal: {out}")
     except Exception as e:
         print(f"ERRO: {e}", file=sys.stderr)
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()
