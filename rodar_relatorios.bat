@@ -27,15 +27,15 @@ REM ============================
 
 cd /d "%~dp0"
 
-REM ==== Intervalo das últimas 24h (sem pipe) ====
+REM ==== Intervalo do DIA ANTERIOR (00:00:00 -> 23:59:59) ====
 for /f "delims=" %%I in ('
   powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-    "(Get-Date).AddHours(-24).ToString('yyyy-MM-dd HH:mm:ss')"
+    "(Get-Date).AddDays(-1).Date.ToString('yyyy-MM-dd 00:00:00')"
 ') do set "FROM=%%~I"
 
 for /f "delims=" %%I in ('
   powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-    "(Get-Date).ToString('yyyy-MM-dd HH:mm:ss')"
+    "(Get-Date).AddDays(-1).Date.AddHours(23).AddMinutes(59).AddSeconds(59).ToString('yyyy-MM-dd HH:mm:ss')"
 ') do set "TO=%%~I"
 
 echo FROM=!FROM!
