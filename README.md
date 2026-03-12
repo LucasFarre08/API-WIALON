@@ -78,6 +78,7 @@ Entre na pasta do projeto:
 cd API-WIALON
 
 Instale as dependências:
+
 ```pip install -r requirements.txt```
 
 ⚙️ Configuração
