@@ -1,13 +1,150 @@
-# Wialon Report Runner + SQL Logger
+API WIALON – Integração e Extração de Relatórios
 
-Executa relatórios do Wialon e registra logs no SQLite.
+Projeto desenvolvido em Python para integração com a API da Wialon, permitindo a execução de relatórios de telemetria e armazenamento dos dados em SQL Server ou MySQL.
 
-## Instalação
-```bash
+A aplicação automatiza a coleta de dados como viagens, consumo de combustível, veículos e motoristas, facilitando análises operacionais e geração de relatórios.
+
+Funcionalidades
+
+Autenticação na API Wialon
+
+Execução automática de relatórios
+
+Extração de dados de telemetria
+
+Processamento e tratamento de dados
+
+Armazenamento em SQL Server ou MySQL
+
+Exportação de relatórios
+
+Sistema de logs de execução
+
+Automação via scripts .bat
+
+Tecnologias Utilizadas
+
+Python 3.10+
+
+Wialon Remote API
+
+Pandas
+
+Requests
+
+PyODBC
+
+Estrutura do Projeto
+API-WIALON
+│
+├── dumps
+├── .env.example
+├── .gitignore
+├── README.md
+│
+├── Relatorio_Wialon.xlsx
+├── requirements.txt
+│
+├── relatorio_mes.bat
+├── rodar_relatorios.bat
+│
+├── wialon_log.txt
+├── wialon_logs.db
+│
+└── wialon_report_sql.py
+Pré-requisitos
+
+Antes de executar o projeto é necessário possuir:
+
+Python 3.10 ou superior
+
+SQL Server ou MySQL
+
+pip
+
+Verificar instalação do Python:
+
+python --version
+Instalação
+
+Clone o repositório:
+
+git clone https://github.com/LucasFarre08/API-WIALON
+
+Acesse a pasta do projeto:
+
+cd API-WIALON
+
+Instale as dependências:
+
 pip install -r requirements.txt
-```
+Configuração
 
-## Uso
-```bash
-python wialon_report_sql.py --token SEU_TOKEN   --resource-id 400915337 --template-id 28 --object-id 400914415   --from "2025-08-01 00:00:00" --to "2025-08-05 23:59:59"   --format xlsx --output Relatorio_Wialon --db wialon_logs.db
-```
+Crie um arquivo .env baseado no arquivo .env.example.
+
+Exemplo:
+
+WIALON_TOKEN=SEU_TOKEN
+WIALON_URL=https://hst-api.wialon.com/wialon/ajax.html
+
+DB_SERVER=localhost
+DB_DATABASE=telemetria
+DB_USER=usuario
+DB_PASSWORD=senha
+Como Executar
+
+Execute o script principal:
+
+python wialon_report_sql.py
+
+O sistema irá:
+
+Autenticar na API Wialon
+
+Executar o relatório configurado
+
+Extrair os dados
+
+Processar as informações
+
+Inserir os dados no banco
+
+Automação
+
+O projeto inclui scripts para execução automática:
+
+rodar_relatorios.bat
+relatorio_mes.bat
+
+Esses arquivos podem ser utilizados no Agendador de Tarefas do Windows para rodar relatórios automaticamente.
+
+Logs
+
+Os registros de execução são armazenados em:
+
+wialon_log.txt
+wialon_logs.db
+
+Esses logs ajudam no diagnóstico de erros e monitoramento do sistema.
+
+API Wialon
+
+A integração utiliza o fluxo padrão da API:
+
+token/login
+↓
+exec_report
+↓
+get_report_status
+↓
+get_report_data
+
+Documentação oficial:
+
+https://sdk.wialon.com/wiki/en/kit/remoteapi/apiref/apiref
+
+Autor
+
+Lucas Arcas Farre
+GitHub:
+https://github.com/LucasFarre08
