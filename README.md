@@ -1,40 +1,38 @@
-API WIALON – Integração e Extração de Relatórios
+# 🚀 API WIALON
+## Integração e Extração de Relatórios de Telemetria
 
-Projeto desenvolvido em Python para integração com a API da Wialon, permitindo a execução de relatórios de telemetria e armazenamento dos dados em SQL Server ou MySQL.
+Projeto desenvolvido em **Python** para integração com a **API da Wialon**, permitindo a execução automática de relatórios de telemetria e armazenamento dos dados em **SQL Server ou MySQL**.
 
-A aplicação automatiza a coleta de dados como viagens, consumo de combustível, veículos e motoristas, facilitando análises operacionais e geração de relatórios.
+A aplicação automatiza a coleta de dados como **viagens, consumo de combustível, veículos e motoristas**, facilitando análises operacionais e geração de relatórios.
 
-Funcionalidades
+---
 
-Autenticação na API Wialon
+# 📌 Funcionalidades
 
-Execução automática de relatórios
+- 🔐 Autenticação na API Wialon
+- 📊 Execução automática de relatórios
+- 📡 Extração de dados de telemetria
+- 🔄 Processamento e tratamento de dados
+- 💾 Armazenamento em SQL Server ou MySQL
+- 📁 Exportação de relatórios
+- 📝 Sistema de logs de execução
+- ⚙️ Automação via scripts `.bat`
 
-Extração de dados de telemetria
+---
 
-Processamento e tratamento de dados
+# 🛠 Tecnologias Utilizadas
 
-Armazenamento em SQL Server ou MySQL
+- Python **3.10+**
+- Wialon **Remote API**
+- **Pandas**
+- **Requests**
+- **PyODBC**
+- **SQL Server / MySQL**
+- **OpenPyXL**
 
-Exportação de relatórios
+---
 
-Sistema de logs de execução
-
-Automação via scripts .bat
-
-Tecnologias Utilizadas
-
-Python 3.10+
-
-Wialon Remote API
-
-Pandas
-
-Requests
-
-PyODBC
-
-Estrutura do Projeto
+# 📂 Estrutura do Projeto
 API-WIALON
 │
 ├── dumps
@@ -52,35 +50,39 @@ API-WIALON
 ├── wialon_logs.db
 │
 └── wialon_report_sql.py
-Pré-requisitos
 
-Antes de executar o projeto é necessário possuir:
+---
 
-Python 3.10 ou superior
+# ⚙️ Pré-requisitos
 
-SQL Server ou MySQL
+Antes de executar o projeto, é necessário possuir:
 
-pip
+- Python **3.10 ou superior**
+- **SQL Server** ou **MySQL**
+- **pip**
 
-Verificar instalação do Python:
+Verificar se o Python está instalado:
 
+```bash
 python --version
-Instalação
+```
+
+📥 Instalação
 
 Clone o repositório:
 
 git clone https://github.com/LucasFarre08/API-WIALON
 
-Acesse a pasta do projeto:
+Entre na pasta do projeto:
 
 cd API-WIALON
 
 Instale as dependências:
 
 pip install -r requirements.txt
-Configuração
+⚙️ Configuração
 
-Crie um arquivo .env baseado no arquivo .env.example.
+Crie um arquivo .env baseado no .env.example.
 
 Exemplo:
 
@@ -91,7 +93,7 @@ DB_SERVER=localhost
 DB_DATABASE=telemetria
 DB_USER=usuario
 DB_PASSWORD=senha
-Como Executar
+▶️ Execução
 
 Execute o script principal:
 
@@ -109,42 +111,43 @@ Processar as informações
 
 Inserir os dados no banco
 
-Automação
+🤖 Automação
 
 O projeto inclui scripts para execução automática:
 
 rodar_relatorios.bat
 relatorio_mes.bat
 
-Esses arquivos podem ser utilizados no Agendador de Tarefas do Windows para rodar relatórios automaticamente.
+Eles podem ser utilizados no Agendador de Tarefas do Windows para execução automática dos relatórios.
 
-Logs
+📝 Logs
 
-Os registros de execução são armazenados em:
+Os registros de execução ficam armazenados em:
 
 wialon_log.txt
 wialon_logs.db
 
-Esses logs ajudam no diagnóstico de erros e monitoramento do sistema.
+Esses arquivos ajudam no diagnóstico de erros e monitoramento do sistema.
 
-API Wialon
+🔗 API Utilizada
 
-A integração utiliza o fluxo padrão da API:
+Fluxo utilizado da Wialon Remote API:
 
 token/login
-↓
+      ↓
 exec_report
-↓
+      ↓
 get_report_status
-↓
+      ↓
 get_report_data
 
 Documentação oficial:
 
 https://sdk.wialon.com/wiki/en/kit/remoteapi/apiref/apiref
 
-Autor
+👨‍💻 Autor
 
-Lucas Arcas Farre
+Lucas Farre
+
 GitHub:
 https://github.com/LucasFarre08
